@@ -638,5 +638,48 @@ app.delete('/api/products/:id', async (req, res) => {
   }
 });
 
+// Health check endpoint for wake-up service
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'Server is running', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+// Wake-up server mechanism to prevent Render free tier downtime
+const wakeUpServer = () => {
+  const serverUrl = process.env.SERVER_URL 
+  
+  fetch(`${serverUrl}/api/health`)
+    .then(response => {
+      if (response.ok) {
+        console.log(`✅ Server wake-up successful at ${new Date().toISOString()}`);
+      } else {
+        console.log(`⚠️ Server wake-up failed with status: ${response.status}`);
+      }
+    })
+    .catch(error => {
+      console.log(`❌ Server wake-up error: ${error.message}`);
+    });
+};
+
+// Set up wake-up interval (every 20 minutes = 1,200,000 milliseconds)
+const WAKE_UP_INTERVAL = 20 * 60 * 1000; // 20 minutes in milliseconds
+
+// Start wake-up service after server is running
+setTimeout(() => {
+  console.log('🚀 Starting wake-up service to keep server alive...');
+  
+  // Initial wake-up call
+  wakeUpServer();
+  
+  // Set up recurring wake-up calls
+  setInterval(wakeUpServer, WAKE_UP_INTERVAL);
+  
+  console.log(`⏰ Wake-up service configured to run every ${WAKE_UP_INTERVAL / 60000} minutes`);
+}, 5000); // Wait 5 seconds after server starts
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
