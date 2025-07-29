@@ -469,7 +469,7 @@ app.put('/api/jobs/:id', async (req, res) => {
       salary,
       applicationDeadline,
       applyUrl,
-      isActive: isActive === 'true'
+      isActive: isActive === true || isActive === 'true'
     };
 
     const updatedJob = await JobPosting.findByIdAndUpdate(
