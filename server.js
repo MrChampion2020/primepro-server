@@ -464,10 +464,10 @@ app.put('/api/jobs/:id', async (req, res) => {
       location,
       type,
       description,
-      requirements: requirements ? requirements.split(',').map(req => req.trim()) : [],
-      benefits: benefits ? benefits.split(',').map(benefit => benefit.trim()) : [],
-      salary,
-      applicationDeadline,
+      requirements: Array.isArray(requirements) ? requirements : (requirements ? requirements.split(',').map(req => req.trim()) : []),
+      benefits: Array.isArray(benefits) ? benefits : (benefits ? benefits.split(',').map(benefit => benefit.trim()) : []),
+      salary: salary || {},
+      applicationDeadline: applicationDeadline ? new Date(applicationDeadline) : null,
       applyUrl,
       isActive: isActive === true || isActive === 'true'
     };
@@ -478,10 +478,16 @@ app.put('/api/jobs/:id', async (req, res) => {
       { new: true }
     );
 
+    if (!updatedJob) {
+      return res.status(404).json({ message: 'Job posting not found' });
+    }
+
     res.status(200).json(updatedJob);
   } catch (error) {
     console.error('Error updating job posting:', error);
-    res.status(500).json({ message: 'An error occurred' });
+    console.error('Request body:', req.body);
+    console.error('Job ID:', req.params.id);
+    res.status(500).json({ message: 'An error occurred', error: error.message });
   }
 });
 
