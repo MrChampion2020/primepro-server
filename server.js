@@ -73,7 +73,21 @@ const JobPostingSchema = new mongoose.Schema({
   applicationDeadline: Date,
   applyUrl: { type: String, required: true },
   isActive: { type: Boolean, default: true },
-  date: { type: Date, default: Date.now }
+  date: { type: Date, default: Date.now },
+  // Tracking metrics
+  views: {
+    count: { type: Number, default: 0 },
+    uniqueIPs: [String],
+    browsers: [String]
+  },
+  shares: {
+    count: { type: Number, default: 0 },
+    uniqueIPs: [String]
+  },
+  applications: {
+    count: { type: Number, default: 0 },
+    uniqueIPs: [String]
+  }
 });
 
 // Add ChatMessage schema
@@ -98,6 +112,24 @@ const ProductSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now }
 });
 const Product = mongoose.model('Product', ProductSchema);
+
+// Helper function to get client IP and browser info
+const getClientInfo = (req) => {
+  const ip = req.headers['x-forwarded-for'] || 
+             req.connection.remoteAddress || 
+             req.socket.remoteAddress ||
+             (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
+             req.ip;
+  
+  const userAgent = req.headers['user-agent'] || '';
+  const browser = userAgent.includes('Chrome') ? 'Chrome' :
+                  userAgent.includes('Firefox') ? 'Firefox' :
+                  userAgent.includes('Safari') ? 'Safari' :
+                  userAgent.includes('Edge') ? 'Edge' :
+                  userAgent.includes('Opera') ? 'Opera' : 'Other';
+  
+  return { ip: ip.replace('::ffff:', ''), browser };
+};
 
 // Nodemailer transporter
 const transporter = nodemailer.createTransport({
@@ -260,9 +292,84 @@ app.get('/api/jobs/:id', async (req, res) => {
     if (!job) {
       return res.status(404).json({ message: 'Job posting not found' });
     }
+    
+    // Track view
+    const { ip, browser } = getClientInfo(req);
+    
+    // Update view count and track unique IPs and browsers
+    if (!job.views.uniqueIPs.includes(ip)) {
+      job.views.uniqueIPs.push(ip);
+    }
+    if (!job.views.browsers.includes(browser)) {
+      job.views.browsers.push(browser);
+    }
+    job.views.count += 1;
+    
+    await job.save();
+    
     res.status(200).json(job);
   } catch (error) {
     console.error('Error fetching job posting:', error);
+    res.status(500).json({ message: 'An error occurred' });
+  }
+});
+
+/**
+ * Track job share
+ * @route POST /api/jobs/:id/share
+ * @param {String} id - Job ID
+ * @returns {Object} Updated job posting
+ */
+app.post('/api/jobs/:id/share', async (req, res) => {
+  try {
+    const job = await JobPosting.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: 'Job posting not found' });
+    }
+    
+    const { ip } = getClientInfo(req);
+    
+    // Track share
+    if (!job.shares.uniqueIPs.includes(ip)) {
+      job.shares.uniqueIPs.push(ip);
+    }
+    job.shares.count += 1;
+    
+    await job.save();
+    
+    res.status(200).json({ message: 'Share tracked successfully', shares: job.shares });
+  } catch (error) {
+    console.error('Error tracking job share:', error);
+    res.status(500).json({ message: 'An error occurred' });
+  }
+});
+
+/**
+ * Track job application
+ * @route POST /api/jobs/:id/apply
+ * @param {String} id - Job ID
+ * @returns {Object} Updated job posting
+ */
+app.post('/api/jobs/:id/apply', async (req, res) => {
+  try {
+    const job = await JobPosting.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: 'Job posting not found' });
+    }
+    
+    const { ip } = getClientInfo(req);
+    
+    // Track application
+    if (!job.applications.uniqueIPs.includes(ip)) {
+      job.applications.uniqueIPs.push(ip);
+    }
+    job.applications.count += 1;
+    
+    await job.save();
+    
+    res.status(200).json({ message: 'Application tracked successfully', applications: job.applications });
+  } catch (error) {
+    console.error('Error tracking job application:', error);
     res.status(500).json({ message: 'An error occurred' });
   }
 });
