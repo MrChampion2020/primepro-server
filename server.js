@@ -71,6 +71,7 @@ const JobPostingSchema = new mongoose.Schema({
     currency: { type: String, default: 'USD' }
   },
   applicationDeadline: Date,
+  applyUrl: { type: String, required: true },
   isActive: { type: Boolean, default: true },
   date: { type: Date, default: Date.now }
 });
@@ -292,7 +293,8 @@ app.post('/api/jobs', async (req, res) => {
       requirements,
       benefits,
       salary,
-      applicationDeadline
+      applicationDeadline,
+      applyUrl
     } = req.body;
 
     const newJob = new JobPosting({
@@ -312,7 +314,8 @@ app.post('/api/jobs', async (req, res) => {
           ? benefits.split(',').map(benefit => benefit.trim())
           : [],
       salary,
-      applicationDeadline
+      applicationDeadline,
+      applyUrl
     });
 
     const savedJob = await newJob.save();
@@ -452,7 +455,7 @@ app.put('/api/jobs/:id', async (req, res) => {
   try {
     const {
       title, company, location, type, description, requirements, benefits,
-      salary, applicationDeadline, isActive
+      salary, applicationDeadline, applyUrl, isActive
     } = req.body;
 
     const updateData = {
@@ -465,6 +468,7 @@ app.put('/api/jobs/:id', async (req, res) => {
       benefits: benefits ? benefits.split(',').map(benefit => benefit.trim()) : [],
       salary,
       applicationDeadline,
+      applyUrl,
       isActive: isActive === 'true'
     };
 
